@@ -1,5 +1,5 @@
 {
-    "name": "xiaochengfu/websocket-swoole",
+    "name": "xiaochengfu/swoole-websocket",
     "description": "Swoole 扩展，整合websocket通信、服务端实时推送等服务",
     "type": "php-extension",
     "keywords": ["yii2","thinkphp5","extension","swoole","yii2-swoole","thinkphp5-swoole"],
@@ -20,7 +20,7 @@
     },
     "autoload": {
         "psr-4": {
-            "xiaochengfu\\websocket-swoole\\": ""
+            "xiaochengfu\\swoole\\": "src"
         }
     }
 }
