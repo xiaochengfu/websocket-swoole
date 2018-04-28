@@ -4,7 +4,7 @@
  * author:houpeng
  * time:2018-01-26
  */
-namespace xiaochengfu\swoole\src;
+namespace xiaochengfu\swoole;
 
 
 class Logger extends SwooleBase

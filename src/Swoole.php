@@ -4,7 +4,7 @@
  * time:2017-05-27
  * author:houpeng
  */
-namespace xiaochengfu\swoole\src;
+namespace xiaochengfu\swoole;
 use Curl\Curl;
 
 class Swoole extends SwooleBase

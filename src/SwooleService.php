@@ -4,7 +4,7 @@
  * author:houpeng
  * time:2017-05-29
  */
-namespace xiaochengfu\swoole\src;
+namespace xiaochengfu\swoole;
 
 class SwooleService{
     /**

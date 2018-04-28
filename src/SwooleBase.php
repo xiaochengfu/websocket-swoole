@@ -6,7 +6,7 @@
  * Description: SwooleBase.php.
  */
 
-namespace xiaochengfu\swoole\src;
+namespace xiaochengfu\swoole;
 
 
 use think\facade\Config;
