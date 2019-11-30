@@ -38,13 +38,15 @@ class SwooleSetWebSocket{
      * @param string $name swoole进程名称
      */
     private function setProcessName($name){
-        if (function_exists('cli_set_process_title')) {
-            cli_set_process_title($name);
-        } else {
-            if (function_exists('swoole_set_process_name')) {
-                swoole_set_process_name($name);
+        if(PHP_OS != 'Darwin'){
+            if (function_exists('cli_set_process_title')) {
+                cli_set_process_title($name);
             } else {
-                trigger_error(__METHOD__. " failed.require cli_set_process_title or swoole_set_process_name.");
+                if (function_exists('swoole_set_process_name')) {
+                    swoole_set_process_name($name);
+                } else {
+                    trigger_error(__METHOD__. " failed.require cli_set_process_title or swoole_set_process_name.");
+                }
             }
         }
     }
@@ -95,7 +97,7 @@ class SwooleSetWebSocket{
      */
     public function onStart($server){
         echo '[' . date('Y-m-d H:i:s') . "]\t swoole_websocket_server master worker start\n";
-        $this->setProcessName($server->settings['process_name'] . '-master');
+        $this->setProcessName($this->settings['process_name'] . '-master');
         //记录进程id,脚本实现自动重启
         $pid = "{$this->server->master_pid}\n{$this->server->manager_pid}";
         file_put_contents($this->settings['pidfile'], $pid);
@@ -110,7 +112,7 @@ class SwooleSetWebSocket{
      */
     public function onManagerStart($server){
         echo '[' . date('Y-m-d H:i:s') . "]\t swoole_http_server manager worker start\n";
-        $this->setProcessName($server->settings['process_name'] . '-manager');
+        $this->setProcessName($this->settings['process_name'] . '-manager');
     }
 
     /**
@@ -122,9 +124,9 @@ class SwooleSetWebSocket{
      */
     public function onWorkerStart($server, $workerId){
         if ($workerId >= $this->settings['worker_num']) {
-            $this->setProcessName($server->settings['process_name'] . '-task');
+            $this->setProcessName($this->settings['process_name'] . '-task');
         } else {
-            $this->setProcessName($server->settings['process_name'] . '-event');
+            $this->setProcessName($this->settings['process_name'] . '-event');
         }
     }
 
