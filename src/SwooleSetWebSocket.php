@@ -18,7 +18,7 @@ class SwooleSetWebSocket{
     private $settings = [];
 
     /**
-     * Yii::$app 对象
+     * 框架全局 对象
      * @var array
      */
     private $app = null;
@@ -34,8 +34,9 @@ class SwooleSetWebSocket{
     }
 
     /**
-     * 设置swoole进程名称
-     * @param string $name swoole进程名称
+     * Description:  设置swoole进程名称,mac无法设置
+     * Author: hp <xcf-hp@foxmail.com>
+     * @param $name
      */
     private function setProcessName($name){
         if(PHP_OS != 'Darwin'){
@@ -52,8 +53,9 @@ class SwooleSetWebSocket{
     }
 
     /**
-     * 运行服务
-     * @return [type] [description]
+     * Description:  运行服务
+     * Author: hp <xcf-hp@foxmail.com>
+     * @return mixed
      */
     public function run(){
         $this->server = new \swoole_websocket_server($this->settings['host'], $this->settings['port']);
@@ -91,15 +93,14 @@ class SwooleSetWebSocket{
     /**
      * Description:  onStart
      * Author: hp <xcf-hp@foxmail.com>
-     * Updater:
      * @param $server
      * @return bool
      */
     public function onStart($server){
-        echo '[' . date('Y-m-d H:i:s') . "]\t swoole_websocket_server master worker start\n";
+        echo '[' . date('Y-m-d H:i:s') . "]\t pid:{$server->master_pid}\t {$this->settings['process_name']} master worker start\n";
         $this->setProcessName($this->settings['process_name'] . '-master');
         //记录进程id,脚本实现自动重启
-        $pid = "{$this->server->master_pid}\n{$this->server->manager_pid}";
+        $pid = "{$server->master_pid}\n{$server->manager_pid}";//master pid 和manger pid
         file_put_contents($this->settings['pidfile'], $pid);
         return true;
     }
@@ -107,23 +108,21 @@ class SwooleSetWebSocket{
     /**
      * Description:  onManagerStart
      * Author: hp <xcf-hp@foxmail.com>
-     * Updater:
-     * @param $server
      */
     public function onManagerStart($server){
-        echo '[' . date('Y-m-d H:i:s') . "]\t swoole_http_server manager worker start\n";
+        echo '[' . date('Y-m-d H:i:s') . "]\t pid:{$server->manager_pid}\t {$this->settings['process_name']} manager worker start\n";
         $this->setProcessName($this->settings['process_name'] . '-manager');
     }
 
     /**
      * Description:  onWorkerStart
      * Author: hp <xcf-hp@foxmail.com>
-     * Updater:
      * @param $server
      * @param $workerId
      */
-    public function onWorkerStart($server, $workerId){
-        if ($workerId >= $this->settings['worker_num']) {
+    public function onWorkerStart($server,$workerId){
+        //$server->taskworker 返回true则代表是task进程
+        if ($server->taskworker && $workerId >= $this->settings['worker_num']) {
             $this->setProcessName($this->settings['process_name'] . '-task');
         } else {
             $this->setProcessName($this->settings['process_name'] . '-event');
@@ -133,18 +132,17 @@ class SwooleSetWebSocket{
     /**
      * Description:  onWorkerStop
      * Author: hp <xcf-hp@foxmail.com>
-     * Updater:
      * @param $server
      * @param $workerId
      */
     public function onWorkerStop($server, $workerId){
-        echo '['. date('Y-m-d H:i:s') ."]\t swoole_http_server[{$server->settings['process_name']}  worker:{$workerId} shutdown\n";
+        $workName = $server->taskwork?'task':'work';
+        echo '['. date('Y-m-d H:i:s') ."]\t {$this->settings['process_name']}  $workName:{$workerId} shutdown\n";
     }
 
     /**
      * Description:  接收websocket客户端信息，并实时返回
      * Author: hp <xcf-hp@foxmail.com>
-     * Updater:
      * @param $server
      * @param $frame
      * @return mixed
@@ -196,12 +194,17 @@ class SwooleSetWebSocket{
              *
              */
             if (isset($requestData['data']['n']) && $requestData['data']['n']) {
-//                thinkphp5的应用示例
-                app($requestData['data']['n'],[
-                    ['server'=>$server,'fid'=> $frame->fd,'data'=>$requestData['data']['p']]
-                ])->{$requestData['data']['f']}();
-//                yii2的应用示例
-//                \Yii::$app->runAction($requestData['data']['a'], [['server'=>$server,'fid'=> $frame->fd,'data'=>$requestData['data']['p']]]);
+                switch ($this->settings['frame']??''){
+                    case 'thinkphp':
+                        app($requestData['data']['n'],[['server'=>$server,'fid'=> $frame->fd,'data'=>$requestData['data']['p']]])->{$requestData['data']['f']}();
+                        break;
+                    case 'yii2':
+                        \Yii::$app->runAction($requestData['data']['a'], [['server'=>$server,'fid'=> $frame->fd,'data'=>$requestData['data']['p']]]);
+                        break;
+                    default:
+                        $server->push($frame->fd, "请先设置所用框架!");
+                        break;
+                }
             }else{
                 $server->push($frame->fd, "终于等到你啦!");
             }
@@ -224,7 +227,7 @@ class SwooleSetWebSocket{
                 if($allFd){
                     if(in_array($requestData['fd'],$this->server->connection_list(0,100))){
                         $status = $this->server->connection_info($requestData['fd']);
-                        if($status['websocket_status'] == 3){
+                        if($status['websocket_status'] == WEBSOCKET_STATUS_FRAME){
 							$t1 = microtime(true);
 							(new Logger())->info('[ 消息发送开始 '.date('Y-m-d H:i:s', time()).']-id为'.$requestData['fd']);
                             $result = $this->server->push($requestData['fd'],$requestData['data']);
@@ -246,7 +249,6 @@ class SwooleSetWebSocket{
     /**
      * Description:  解析data对象
      * Author: hp <xcf-hp@foxmail.com>
-     * Updater:
      * @param $data
      * @return array|bool|mixed
      */
@@ -263,14 +265,14 @@ class SwooleSetWebSocket{
     /**
      * Description:  任务处理
      * Author: hp <xcf-hp@foxmail.com>
-     * Updater:
      * @param $serv
      * @param $task_id
-     * @param $from_id
+     * @param $src_worker_id
      * @param $data
      * @return array|bool|mixed
      */
-    public function onTask($serv, $task_id, $from_id, $data){
+    public function onTask($serv, $task_id, $src_worker_id, $data){
+        //$task_id和$src_worker_id组合起来才是全局唯一的
         (new Logger())->info('[task data] '.$data);
         $data = $this->parseData($data);
         if($data === false){
@@ -280,25 +282,9 @@ class SwooleSetWebSocket{
     }
 
 
-    protected function httpGet($url,$data){
-        if ($data) {
-            $url .='?'.http_build_query($data) ;
-        }
-        $curlObj = curl_init();    //初始化curl，
-        curl_setopt($curlObj, CURLOPT_URL, $url);   //设置网址
-        curl_setopt($curlObj, CURLOPT_RETURNTRANSFER, 1);  //将curl_exec的结果返回
-        curl_setopt($curlObj, CURLOPT_SSL_VERIFYPEER, FALSE);
-        curl_setopt($curlObj, CURLOPT_SSL_VERIFYHOST, FALSE);
-        curl_setopt($curlObj, CURLOPT_HEADER, 0);         //是否输出返回头信息
-        $response = curl_exec($curlObj);   //执行
-        curl_close($curlObj);          //关闭会话
-        return $response;
-    }
-
     /**
      * Description:  解析onfinish数据
      * Author: hp <xcf-hp@foxmail.com>
-     * Updater:
      * @param $data
      * @return bool|string
      */
@@ -312,7 +298,6 @@ class SwooleSetWebSocket{
     /**
      * Description:  任务结束回调函数
      * Author: hp <xcf-hp@foxmail.com>
-     * Updater:
      * @param $server
      * @param $taskId
      * @param $data
@@ -342,11 +327,10 @@ class SwooleSetWebSocket{
     /**
      * Description:  客户端关闭后,服务端的消息回调
      * Author: hp <xcf-hp@foxmail.com>
-     * Updater:
-     * @param $ser
+     * @param $server
      * @param $fd
      */
-    public function onClose($ser, $fd){
+    public function onClose($server, $fd){
         echo "client {$fd} closed\n";
         /**
          * 这里可以写你的回调处理
@@ -364,12 +348,13 @@ class SwooleSetWebSocket{
      */
     public function onReceive($server, $fd, $from_id, $data){
         if($data == 'stats'){
-            return $this->server->send($fd,var_export($this->server->stats(),true),$from_id);
+            return $server->send($fd,var_export($server->stats(),true),$from_id);
         }
-        $this->server->task($data);//非阻塞的，将任务扔到任务池，并及时返还
+        $server->task($data);//非阻塞的，将任务扔到任务池，并及时返还
         return true;
 
     }
+
 
 }
 
