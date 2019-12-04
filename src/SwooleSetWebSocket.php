@@ -161,50 +161,13 @@ class SwooleSetWebSocket{
             $requestData = json_decode($frame->data,true);
             /**
              * 功能二:
-             * 这里分别以thinkphp5、yii2为例
              * 扩展部分,根据客户端发来的命令{$frame->data}来做出相应的处理,这里根据自己的需求来写不做处理...
-             * 推荐使用框架的全局调用方法来做扩展处理,来实现解耦,主要通过client发来的socket指令data来自定义区分逻辑控制器
-             * thinkphp5推荐data协议指令：data=>['n'=>'app\common\logic\SwooleCallback','f'=>'test','p'=>['a'=>1]],n为名字空间,f为方法,p为参数
-             * yii2推荐data协议指令：data=>['a'=>'test/test','p'=>['a'=>1]],a为控制器,p为参数
-             *
-             * thinkphp5你的回调类可能是这样的：
-             * class SwooleCallback
-             *   {
-             *       public $server;
-             *      public $fid;
-             *      public $data;
-             *      public function __construct($args)
-             *      {
-             *          $this->server = $args['server'];
-             *          $this->fid = $args['fid'];
-             *          $this->data = $args['data'];
-             *      }
-             *
-             *     public function test(){
-             *         //实时回应
-             *         $this->server->push($this->fid,json_encode($this->data));
-             *      }
-             *  }
-             *
-             * yii2你的控制器console/controllers可能是这样的:
-             *  public function actionTest($param){
-             *      $info = $param['data'];
-             *      $param['server']->push($param['fid'],json_encode($info));
-             *  }
+             * 主要通过client发来的socket指令data来自定义区分逻辑控制器
+             * 例如data协议指令：data=>['namespace'=>'app\\swoole\\SwooleCallback','function'=>'test','params'=>['a'=>1]],namespace为名字空间,function为方法,params为参数
              *
              */
-            if (isset($requestData['data']['n']) && $requestData['data']['n']) {
-                switch ($this->settings['frame']??''){
-                    case 'thinkphp':
-                        app($requestData['data']['n'],[['server'=>$server,'fid'=> $frame->fd,'data'=>$requestData['data']['p']]])->{$requestData['data']['f']}();
-                        break;
-                    case 'yii2':
-                        \Yii::$app->runAction($requestData['data']['a'], [['server'=>$server,'fid'=> $frame->fd,'data'=>$requestData['data']['p']]]);
-                        break;
-                    default:
-                        $server->push($frame->fd, "请先设置所用框架!");
-                        break;
-                }
+            if (isset($requestData['data']['namespace']) && $requestData['data']['namespace']) {
+                call_user_func_array([$requestData['data']['namespace'],$requestData['data']['function']],[$server,$frame->fd,$requestData['data']['params']]);
             }else{
                 $server->push($frame->fd, "终于等到你啦!");
             }
