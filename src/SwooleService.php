@@ -14,16 +14,10 @@ class SwooleService{
      */
     private $settings = [];
 
-    /**
-     * 框架全局对象
-     * @var null
-     */
-    private $app = null;
 
-    function __construct($settings,$app){
+    function __construct($settings){
         $this->settings = $settings;
         $this->check();
-        $this->app = $app;
     }
 
     /**
@@ -47,8 +41,8 @@ class SwooleService{
         * 检查命令 lsof 命令是否存在
         */
         exec("whereis lsof", $out);
-        if (strpos($out[0], "/usr/sbin/lsof") === false ) {
-            exit('error:找不到lsof命令,请确保lsof在/usr/sbin下' . PHP_EOL);
+        if (strpos($out[0], "lsof") === false ) {
+            exit('error:找不到lsof命令' . PHP_EOL);
         }
 		/**
         * 检查目录是否存在并赋予权限
@@ -66,7 +60,7 @@ class SwooleService{
      */
     private function bindPort($port) {
         $res = [];
-        $cmd = "/usr/sbin/lsof -i :{$port}|awk '$1 != \"COMMAND\"  {print $1, $2, $9}'";
+        $cmd = "lsof -i :{$port}|awk '$1 != \"COMMAND\"  {print $1, $2, $9}'";
         //eg:  php 7935 localhost:9512
         exec($cmd, $out);
         if ($out) {
@@ -119,7 +113,7 @@ class SwooleService{
         }
 
         //启动
-        $server = new SwooleSetWebSocket($this->settings,$this->app);
+        $server = new SwooleSetWebSocket($this->settings);
         $server->run();
         
     }

@@ -17,20 +17,13 @@ class SwooleSetWebSocket{
      */
     private $settings = [];
 
-    /**
-     * 框架全局 对象
-     * @var array
-     */
-    private $app = null;
 
     /**
      * SwooleSetWebSocket constructor.
      * @param $settings
-     * @param $app
      */
-    public function __construct($settings,$app){
+    public function __construct($settings){
         $this->settings = $settings;
-        $this->app = $app;
     }
 
     /**
@@ -192,20 +185,23 @@ class SwooleSetWebSocket{
                         $status = $this->server->connection_info($requestData['fd']);
                         if($status['websocket_status'] == WEBSOCKET_STATUS_FRAME){
 							$t1 = microtime(true);
-							(new Logger())->info('[ 消息发送开始 '.date('Y-m-d H:i:s', time()).']-id为'.$requestData['fd']);
-                            $result = $this->server->push($requestData['fd'],$requestData['data']);
+							$logger = new Logger($this->settings);
+							$logger->info('[ 消息发送开始 '.date('Y-m-d H:i:s', time()).']-id为'.$requestData['fd']);
+                            $result = $this->server->push($requestData['fd'],json_encode($requestData['data']));
                             echo $result. PHP_EOL;
-                            echo time(). PHP_EOL;
                             echo date('Y-m-d H:i:s'). PHP_EOL;
 							$t2 = microtime(true);
-							(new Logger())->info('[ 消息发送结束 '.date('Y-m-d H:i:s', time()).']-id为'.$requestData['fd'].' 执行耗时：'.round($t2-$t1, 3));
-                        } else
-							$this->onClose($this->server, $requestData['fd']);
+							$logger->info('[ 消息发送结束 '.date('Y-m-d H:i:s', time()).']-id为'.$requestData['fd'].' 执行耗时：'.round($t2-$t1, 3));
+                            $response->end('success');
+                        } else{
+                            $this->onClose($this->server, $requestData['fd']);
+                        }
                     }
                 }
             }
+        }else{
+            $response->end(json_encode($this->server->stats()));
         }
-        $response->end(json_encode($this->server->stats()));
     }
 
 
@@ -236,7 +232,7 @@ class SwooleSetWebSocket{
      */
     public function onTask($serv, $task_id, $src_worker_id, $data){
         //$task_id和$src_worker_id组合起来才是全局唯一的
-        (new Logger())->info('[task data] '.$data);
+        (new Logger($this->settings))->info('[task data] '.$data);
         $data = $this->parseData($data);
         if($data === false){
             return false;

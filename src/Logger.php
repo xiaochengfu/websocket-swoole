@@ -7,8 +7,17 @@
 namespace xiaochengfu\swoole;
 
 
-class Logger extends SwooleBase
+class Logger
 {
+    /**
+     * 配置对象
+     * @var array
+     */
+    private $settings = [];
+
+    function __construct($settings){
+        $this->settings = $settings;
+    }
 
     public  function info($msg,$logfile='') {
         $settings = $this->settings;
