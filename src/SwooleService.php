@@ -7,26 +7,22 @@
 namespace xiaochengfu\swoole;
 
 class SwooleService{
+
     /**
      * 配置对象
      * @var array
      */
     private $settings = [];
-    /**
-     * Yii::$app
-     * @var null
-     */
-    private $app = null;
 
-    function __construct($settings,$app){
+
+    function __construct($settings){
         $this->settings = $settings;
         $this->check();
-        $this->app = $app;
     }
 
     /**
-     * [check description]
-     * @return [type] [description]
+     * Description:  check
+     * Author: hp <xcf-hp@foxmail.com>
      */
     private function check(){
         /**
@@ -45,8 +41,8 @@ class SwooleService{
         * 检查命令 lsof 命令是否存在
         */
         exec("whereis lsof", $out);
-        if (strpos($out[0], "/usr/sbin/lsof") === false ) {
-            exit('error:找不到lsof命令,请确保lsof在/usr/sbin下' . PHP_EOL);
+        if (strpos($out[0], "lsof") === false ) {
+            exit('error:找不到lsof命令' . PHP_EOL);
         }
 		/**
         * 检查目录是否存在并赋予权限
@@ -57,13 +53,15 @@ class SwooleService{
     }
 
     /**
-     * 获取指定端口的服务占用列表
-     * @param  [type] $port 端口号
-     * @return [type]       [description]
+     * Description:  获取指定端口的服务占用列表
+     * Author: hp <xcf-hp@foxmail.com>
+     * @param $port
+     * @return array
      */
     private function bindPort($port) {
         $res = [];
-        $cmd = "/usr/sbin/lsof -i :{$port}|awk '$1 != \"COMMAND\"  {print $1, $2, $9}'";
+        $cmd = "lsof -i :{$port}|awk '$1 != \"COMMAND\"  {print $1, $2, $9}'";
+        //eg:  php 7935 localhost:9512
         exec($cmd, $out);
         if ($out) {
             foreach ($out as $v) {
@@ -71,16 +69,17 @@ class SwooleService{
                 list($ip, $p) = explode(':', $a[2]);
                 $res[$a[1]] = [
                     'cmd'  => $a[0],
-                    'ip'   => $ip,
+                    'ip'   => $ip === 'localhost'?'127.0.0.1':$ip,
                     'port' => $p,
                 ];
             }
         }
         return $res;
     }
+
     /**
-     * 启动服务
-     * @return [type] [description]
+     * Description:  启动服务
+     * Author: hp <xcf-hp@foxmail.com>
      */
     public function serviceStart(){
 
@@ -105,7 +104,6 @@ class SwooleService{
         }
 
         $bind = $this->bindPort($port);
-
         if ($bind) {
             foreach ($bind as $k => $v) {
                 if ($v['ip'] == '*' || $v['ip'] == $host) {
@@ -115,16 +113,14 @@ class SwooleService{
         }
 
         //启动
-        $server = new SwooleSetWebSocket($this->settings,$this->app);
+        $server = new SwooleSetWebSocket($this->settings);
         $server->run();
         
     }
 
     /**
-     * 查看服务状态
-     * @param  [type] $host host
-     * @param  [type] $port port
-     * @return [type]       [description]
+     * Description:  查看服务状态
+     * Author: hp <xcf-hp@foxmail.com>
      */
     public function serviceStats(){
         $client = new \swoole_http_client($this->settings['host'],$this->settings['port']);
@@ -141,8 +137,8 @@ class SwooleService{
     }
 
     /**
-     * 查看进程列表
-     * @return [type] [description]
+     * Description:  查看进程列表
+     * Author: hp <xcf-hp@foxmail.com>
      */
     public function serviceList(){
 
@@ -163,10 +159,8 @@ class SwooleService{
     }
 
     /**
-     * 停止服务
-     * @param  [type]  $host      host
-     * @param  [type]  $port      port
-     * @return [type]             [description]
+     * Description:  停止服务
+     * Author: hp <xcf-hp@foxmail.com>
      */
     public function serviceStop(){
 
@@ -203,9 +197,10 @@ class SwooleService{
     }
 
     /**
-     * [error description]
-     * @param  [type] $msg [description]
-     * @return [type]      [description]
+     * Description:  msg
+     * Author: hp <xcf-hp@foxmail.com>
+     * @param $msg
+     * @param bool $exit
      */
     private function msg($msg,$exit=false){
 
@@ -214,11 +209,12 @@ class SwooleService{
         }else{
             echo $msg . PHP_EOL;
         }
-    }    
+    }
+
     /**
-     * [error description]
-     * @param  [type] $msg [description]
-     * @return [type]      [description]
+     * Description:  error
+     * Author: hp <xcf-hp@foxmail.com>
+     * @param $msg
      */
     private function error($msg){
         exit("[error]:".$msg . PHP_EOL);
