@@ -16,7 +16,7 @@
         }
     ],
     "require": {
-        "curl/curl": "^1.8"
+        "curl/curl": ">=1.8"
     },
     "autoload": {
         "psr-4": {
